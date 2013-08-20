@@ -1,18 +1,20 @@
 {
-  "name": "application-name",
+  "name": "books-service",
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "node app.js"
+    "start": "coffee app.coffee"
   },
   "dependencies": {
-    "express": "3.3.5",
-    "jade": "*",
-    "mysql": "~2.0.0-alpha8",
+    "express": "3.3.x",
+    "pg": "2.3.x",
     "underscore": "~1.5.1",
-    "coffee-script": "~1.6.3"
+    "coffee-script": "~1.6.3",
+    "mustache-express": "git+https://github.com/ilmirons/node-mustache-express.git#712cd7f1d067b4255d047a89d8ad31cf3bf758f2"
   },
   "devDependencies": {
-    "nodemon": "~0.7.10"
+    "mocha": "~1.12.0",
+    "chai": "~1.7.2",
+    "chai-http": "~0.4.0"
   }
 }

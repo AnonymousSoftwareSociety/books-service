@@ -1,4 +1,3 @@
 ## TODO
 
-
-* regularize dependency actually installed from local directory
+* Test/setup db connectivity
