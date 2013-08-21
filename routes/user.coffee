@@ -3,5 +3,6 @@
  GET users listing.
 ###
 
-exports.list = (req, res) ->
-  res.send "respond with a resource"
+uCtl = require __dirname + '/../lib/UserController' 
+
+exports.getUser = (req, res) -> uCtl.getByUsername(req.params.username, (obj) => res.json obj)

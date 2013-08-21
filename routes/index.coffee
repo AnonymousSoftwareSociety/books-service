@@ -4,4 +4,5 @@
 ###
 
 exports.index = (req, res) ->
-  res.render('index', { title: 'Express' })
+  console.log ('RENDERING INDEX')
+  res.render('index', { title: 'Express', user: req.user })

@@ -1,4 +1,16 @@
 {{> header}}
 <h1> {{title}} </h1>
-<p> Welcome to {{title}} </p>
+<h4> Welcome to {{title}} </h4>
+
+{{! landing page}}
+
+{{^user}}
+<p>Benvenuto. Per favore <a href="/login">loggati.</a></p>
+{{/user}}
+
+{{! pannello di amministrazione dell'utente}}
+
+{{#user}}
+<p>Hello, {{user.username}}.</p>
+{{/user}}
 {{> footer }}
