@@ -11,8 +11,6 @@ userCtl       = require __dirname + '/lib/UserController'
 flash         = require 'connect-flash'
 passport      = require 'passport'
 routes        = require './routes'
-loginForm     = require './routes/loginForm'
-user          = require './routes/user'
 mustache      = require 'mustache-express'
 http          = require 'http'  
 path          = require 'path'  
@@ -74,9 +72,11 @@ app.post('/login', passport.authenticate('local', { successRedirect: '/', failur
 		res.redirect(auth.successRedirect)
 )
 
-app.get('/login', loginForm.loginForm)
+app.get('/login', (req, res) -> res.render('loginForm'))
 
 app.get('/logout', auth.logout)
+
+app.get('/register', (req, res) -> res.render('register_dialog'))
 
 
 

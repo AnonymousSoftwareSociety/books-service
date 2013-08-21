@@ -6,7 +6,7 @@ module.exports.check = (user, password) ->
 	console.log (user.password + "==" + sha1(user.username + password))
 	user.password == sha1(user.username + password)
 
-module.exports.logout = (req, res) ->
+module.exports.logout = (req, res) =>
 	req.logout()
 	req.redirect successRedirect
 
