@@ -11,7 +11,7 @@ userCtl       = require __dirname + '/lib/UserController'
 bsUtil        = require __dirname + '/lib/util'
 flash         = require 'connect-flash'
 passport      = require 'passport'
-routes        = require './routes'
+routes        = require __dirname + '/lib/routes'
 mustache      = require 'mustache-express'
 http          = require 'http'  
 path          = require 'path'
@@ -82,8 +82,19 @@ app.get('/logout', auth.logout)
 # Registration stuff
 
 app.get('/register', (req, res) -> res.render('register_dialog', { message: bsUtil.compactFlash(req.flash('error')) }))
-
 app.post('/register', userCtl.register)
+
+# From here on verify Logged in
+app.all('*', auth.ensureAuthenticated)
+
+# Wizard for requesting/offering books
+# schema is :action/:step
+
+app.get(new RegExp('^/(offer|request)/(1)?$'), routes.actionWizardSwitch)
+app.post(new RegExp('^/(offer|request)/([2-9])$'), routes.actionWizardStep)
+
+# Sink
+app.all('*', (req, res) -> res.send(404))
 
 http.createServer(app).listen(app.get('port'), 
 () -> console.log ('Express server listening on port ' + app.get('port')))

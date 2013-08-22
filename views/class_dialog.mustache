@@ -1,0 +1,18 @@
+{{> header}}
+
+<h2>{{actionLabel}}</h2>
+
+<form action="{{& action}}" method="POST">
+<fieldset>
+ <legend>Scegli la classe di cui vuoi selezionare libri</legend><br>
+ <select name="class">
+ {{#classes}}
+   <option value="{{class}}">{{class}}</option>
+ {{/classes}}
+ </select>
+ 
+ <input type="hidden" name="actionType" value="{{actionType}}" />
+ <input type="submit" value="Vai"/>
+ </fieldset>
+ </form>
+{{> footer}}

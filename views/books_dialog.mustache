@@ -1,0 +1,27 @@
+{{> header}}
+
+<h2>{{actionLabel}}</h2>
+
+<form action="{{& action}}" method="POST">
+<fieldset>
+ <legend>Libri per {{class}}</legend><br>
+<table>
+<tr><th>Sel.</th><th>ISBN</th><th>Titolo</th><th>Autori</th><th>Prezzo intero</th></tr>
+{{#books}}
+<tr>
+	<td><input type="checkbox" name="books" value="{{id}}"/></td>
+	<td>{{isbn}}</td>
+	<td>{{title}}</td>
+	<td>{{author}}</td>
+	<td>{{price}}</td>
+</tr>
+{{/books}}
+{{^books}}
+<h3>Nessun libro per questa classe :(</h3>
+{{/books}}
+</table>
+<input type="hidden" name="actionType" value="{{actionType}}" />
+<input type="submit" value="invia" />
+</fieldset>
+</form>
+{{> footer}}
