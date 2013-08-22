@@ -3,7 +3,6 @@ lib-cov
 *.log
 node_modules
 *.js
-*.csv
 *.dat
 *.out
 *.pid
