@@ -3,7 +3,9 @@
  Module dependencies.
 ###
 
-db            = require(__dirname + '/lib/Db')('postgres://darkjaglee:misonocapito@localhost:5432/books')
+process.env.DATABASE_URL ?= 'postgres://darkjaglee:misonocapito@localhost:5432/books'
+
+db            = require(__dirname + '/lib/Db')(process.env.DATABASE_URL)
 express       = require 'express'
 localStrategy = require('passport-local').Strategy
 auth          = require __dirname + '/lib/Authentication'
@@ -37,7 +39,7 @@ app.use app.router
 app.use express.static path.join(__dirname, 'public')
 
 # development only
-if  'development' == app.get 'env'
+if 'dev' == process.env.NODE_ENV
   app.use express.errorHandler
   
   
