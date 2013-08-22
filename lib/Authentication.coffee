@@ -12,8 +12,13 @@ module.exports.logout = (req, res) =>
 	req.redirect successRedirect
 
 module.exports.ensureAuthenticated = (req, res, next) ->
-  return next() if req.isAuthenticated()
-  res.redirect '/login'
+  if req.isAuthenticated()
+  	return next()
+  else
+    res.redirect '/login'
   
 module.exports.login = (req, res) => 
-  res.render('loginForm', { message: bsUtil.compactFlash(req.flash('error')) })
+  if req.isAuthenticated()
+  	res.redirect('/')
+  else
+    res.render('loginForm', { message: bsUtil.compactFlash(req.flash('error')) })

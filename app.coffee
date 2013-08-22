@@ -8,12 +8,13 @@ express       = require 'express'
 localStrategy = require('passport-local').Strategy
 auth          = require __dirname + '/lib/Authentication'
 userCtl       = require __dirname + '/lib/UserController'
+bsUtil        = require __dirname + '/lib/util'
 flash         = require 'connect-flash'
 passport      = require 'passport'
 routes        = require './routes'
 mustache      = require 'mustache-express'
 http          = require 'http'  
-path          = require 'path'  
+path          = require 'path'
 inspect       = require('util').inspect
 
 app = express()
@@ -67,6 +68,8 @@ passport.use(new localStrategy((username, password, done) =>
 
 app.get('/', routes.index)
 
+# Login stuff
+
 app.post('/login', passport.authenticate('local', { successRedirect: '/', failureRedirect: '/login', failureFlash: true }),
 	(req, res) => 
 		res.redirect(auth.successRedirect)
@@ -76,7 +79,11 @@ app.get('/login', auth.login)
 
 app.get('/logout', auth.logout)
 
-app.get('/register', (req, res) -> res.render('register_dialog'))
+# Registration stuff
+
+app.get('/register', (req, res) -> res.render('register_dialog', { message: bsUtil.compactFlash(req.flash('error')) }))
+
+app.post('/register', userCtl.register)
 
 http.createServer(app).listen(app.get('port'), 
 () -> console.log ('Express server listening on port ' + app.get('port')))
