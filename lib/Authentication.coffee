@@ -1,4 +1,5 @@
-sha1          = require 'sha1'
+sha1   = require 'sha1'
+bsUtil = require __dirname + '/util'
 
 module.exports.successRedirect = '/'
 
@@ -13,4 +14,6 @@ module.exports.logout = (req, res) =>
 module.exports.ensureAuthenticated = (req, res, next) ->
   return next() if req.isAuthenticated()
   res.redirect '/login'
-
+  
+module.exports.login = (req, res) => 
+  res.render('loginForm', { message: bsUtil.compactFlash(req.flash('error')) })

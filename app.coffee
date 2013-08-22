@@ -72,13 +72,11 @@ app.post('/login', passport.authenticate('local', { successRedirect: '/', failur
 		res.redirect(auth.successRedirect)
 )
 
-app.get('/login', (req, res) -> res.render('loginForm'))
+app.get('/login', auth.login)
 
 app.get('/logout', auth.logout)
 
 app.get('/register', (req, res) -> res.render('register_dialog'))
-
-
 
 http.createServer(app).listen(app.get('port'), 
 () -> console.log ('Express server listening on port ' + app.get('port')))
