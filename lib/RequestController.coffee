@@ -4,16 +4,18 @@ _  = require 'underscore'
 SUCCESS = true
 FAILURE = false
 
-# TODO generalize
 checkMatchingExists = (table) =>
-    (request, callback) => 
+    (object, callback) => 
         db.query("SELECT id FROM #{table} AS sl
-                    JOIN statuses AS s ON sl.Statuses_id = s.id
                     WHERE sl.Books_id = $1 AND 
-                            s.name = 'OPEN' 
+                          sl.Statuses_id = $2
                     ORDER BY sl.creation_date ASC
-                    LIMIT 0 1", [request.bookId], 
-                (rows) => callback if rows.length > 0 then rows[0] else null)
+                    LIMIT 0 1", [object.bookId, util.status.OPEN], 
+                (rows) => 
+                    if rows.length > 0 
+                        callback(rows[0], object)
+                    else 
+                        callback(null, object))
 
 
 checkNoDup = (table) =>
@@ -36,9 +38,12 @@ checkNoDupRequest = checkNoDup('require')
 
 checkNoDupSell = checkNoDup('sell')
 
+createObject  = (table) => #TODO
+    (objectInfo, callback) =>
+        db.insert(table, objectInfo, callback)
+
 createRequest = (requestInfo, callback) =>
     console.log 'createRequest'
-    console.log JSON.stringify(requestInfo)
     db.query('''
              INSERT INTO require ("Statuses_id","Users_id","Books_id") 
              VALUES ((SELECT id FROM statuses WHERE name = 'OPEN'),$1,$2)
@@ -65,12 +70,10 @@ mkSendResultsFactory = (send, results = { success: [], failure: [] }) =>
             send(results) # send callback handles 'type' of results
             
 createNegotiation = (request, sell, callback) =>
-    # TODO
+    # TODO (pay attention with param order)
     callback { request: request, sell: sell }
     
-checkMatchingSell =  => null
-# TODO
-# checkMatchingExists('sell')
+checkMatchingSell =  (request, callback) => checkMatchingExists('sell')
 
 module.exports.insertRequest = (requestInfo, success, failure) =>
     checkNoDupRequest(requestInfo, => createRequest(requestInfo, 
@@ -79,8 +82,8 @@ module.exports.insertRequest = (requestInfo, success, failure) =>
                       failure(requestInfo)
                     else
                       checkMatchingSell(request, 
-                      (sell) => 
-                          if (sell?) 
+                        (sell, request) => 
+                          if (sell?)
                               createNegotiation(request, sell, 
                                         (negotiation) =>
                                             success negotiation.request)
@@ -95,10 +98,11 @@ module.exports.insertRequest = (requestInfo, success, failure) =>
     
 module.exports.insertRequests = (req, res) =>
     
-    requests      = _.map(req.body.books, (bookId) => 
+    books         = req.body.books.split(',')
+    reqNum        = books.length - 1
+    requests      = _.map(books[...reqNum], (bookId) => 
                            { bookId: bookId, userId: req.user.id })
-    console.log(JSON.stringify(requests))
-    send          = _.after(requests.length, (results) => res.json results)
+    send          = _.after(reqNum, (results) => res.json results)
     mkSendResults = mkSendResultsFactory(send)
     success       = mkSendResults(SUCCESS)
     failure       = mkSendResults(FAILURE)

@@ -10,3 +10,8 @@ module.exports.compactFlash = (msgArray, cls = 'error') ->
 module.exports.getClasses = (callback) =>
 	db.query("""SELECT id, year || ' ' || section AS class FROM classes
 """, (rows) => callback({ classes: rows }))
+        
+module.exports.status =
+    OPEN:     1
+    ASSIGNED: 2
+    CLOSED:   3

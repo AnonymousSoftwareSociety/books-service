@@ -17,7 +17,8 @@ module.exports = (options) ->
                 console.log errMsg
             else
                 callback(if not verbose then result.rows else result)
-        if _.isArray params then cli.query(qs, params, rowsCallback) else cli.query(qs, rowsCallback)
+        if _.isArray params then cli.query(qs, params, rowsCallback) 
+        else cli.query(qs, rowsCallback)
 
     module.exports.VERBOSE = true
 
@@ -33,11 +34,22 @@ module.exports = (options) ->
         
         ksString    = _mkVString kVal.ks 
         dummyString = _mkVString kVal.dummy
-        
+        # TODO merge with retrieve
         module.exports.query("INSERT INTO #{table} #{ksString} VALUES
                              #{dummyString}", kVal.vls, callback)
 
-    #TODO
-    module.exports.retrieve = undefined
+
+    module.exports.retrieve = (table, object, callback) =>
+    
+        kVal = _.reduce(object, (vls, value, key) => 
+                              vls.cnt += 1
+                              vls.vls.push value
+                              vls.Str.push """#{key} = #{
+                                  if _.isString key then '"$' + vls.cnt +
+                                            '"' else '$' + vls.cnt} """,
+                              { cnt: 0, vls: [], Str: [] })
+                              
+        module.exports.query("SELECT * FROM #{table} WHERE 
+                             #{kVal.Str.join('AND ')}", kVal.vls, callback)
 
     return module.exports
