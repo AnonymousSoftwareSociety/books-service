@@ -26,15 +26,15 @@ app.set('port', process.env.PORT || 3000)
 app.engine('mustache', mustache())
 app.set('views', __dirname + '/views')  
 app.set('view engine', 'mustache')  
-app.use express.favicon()    
-app.use express.logger 'dev'   
+app.use express.favicon()
+app.use express.logger 'dev'
 app.use express.bodyParser()
 app.use express.cookieParser()
 app.use express.methodOverride()
 app.use express.session({ secret: 'keyboard cat' })
 app.use flash()
 app.use passport.initialize()
-app.use passport.session()   
+app.use passport.session()
 app.use app.router
 app.use express.static path.join(__dirname, 'public')
 
@@ -65,6 +65,14 @@ passport.use(new localStrategy((username, password, done) =>
     )
 ))
 
+loginConf =
+    successRedirect: auth.successRedirect 
+    failureRedirect: '/login'
+    failureFlash: true
+    
+registerConf =
+    message: bsUtil.compactFlash(req.flash('error'))
+
 
 # Routes
 
@@ -72,10 +80,7 @@ app.get('/', routes.index)
 
 # Login stuff
 
-app.post('/login', passport.authenticate('local', { successRedirect: '/', failureRedirect: '/login', failureFlash: true }),
-	(req, res) => 
-		res.redirect(auth.successRedirect)
-)
+app.post('/login', passport.authenticate('local', loginConf))
 
 app.get('/login', auth.login)
 
@@ -83,7 +88,7 @@ app.get('/logout', auth.logout)
 
 # Registration stuff
 
-app.get('/register', (req, res) -> res.render('register_dialog', { message: bsUtil.compactFlash(req.flash('error')) }))
+app.get('/register', (req, res) -> res.render('register_dialog', registerConf))
 app.post('/register', userCtl.register)
 
 # From here on verify Logged in
