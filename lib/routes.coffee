@@ -27,7 +27,7 @@ createObject = (req, res) =>
 	console.log 'createObject'
 	switch type
 		when 'offer'   then oCtl.createOffer(req, res)
-		when 'request' then rCtl.createRequest(req, res)
+		when 'request' then rCtl.insertRequests(req, res)
 		else return res.send(404)
 
 exports.actionWizardStep = (req, res) =>

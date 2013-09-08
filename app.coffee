@@ -1,9 +1,8 @@
-
 ###
  Module dependencies.
 ###
 
-process.env.DATABASE_URL ?= 'postgres://darkjaglee:misonocapito@localhost:5432/books'
+process.env.DATABASE_URL ?= 'postgres://andrea:andrea@localhost:5432/books'
 
 db            = require(__dirname + '/lib/Db')(process.env.DATABASE_URL)
 express       = require 'express'
@@ -15,7 +14,7 @@ flash         = require 'connect-flash'
 passport      = require 'passport'
 routes        = require __dirname + '/lib/routes'
 mustache      = require 'mustache-express'
-http          = require 'http'  
+http          = require 'http'
 path          = require 'path'
 inspect       = require('util').inspect
 
@@ -24,8 +23,8 @@ app = express()
 # all environments
 app.set('port', process.env.PORT || 3000)
 app.engine('mustache', mustache())
-app.set('views', __dirname + '/views')  
-app.set('view engine', 'mustache')  
+app.set('views', __dirname + '/views')
+app.set('view engine', 'mustache')
 app.use express.favicon()
 app.use express.logger 'dev'
 app.use express.bodyParser()
@@ -41,19 +40,18 @@ app.use express.static path.join(__dirname, 'public')
 # development only
 if 'dev' == process.env.NODE_ENV
   app.use express.errorHandler
-  
-  
+
 passport.serializeUser((user, done) ->
   done(null, user.id)
 )
 
 passport.deserializeUser((id, done) =>
   userCtl.getById(id, (user) -> 
-  	err = new Error("Error in deserializing user")
-  	if not user then done(err, false) else done(null, user)
+    err = new Error("Error in deserializing user")
+    if not user then done(err, false) else done(null, user)
   )
 )
-  
+
 passport.use(new localStrategy((username, password, done) =>
     userCtl.getByUsername(username, (user) =>
       if not user
@@ -61,17 +59,12 @@ passport.use(new localStrategy((username, password, done) =>
       if not auth.check(user, password)
         return done(null, false, { message: 'Incorrect password.' })
       console.log 'authentication succeeded'
-      return done(null, user)
-    )
-))
+      return done(null, user))))
 
 loginConf =
     successRedirect: auth.successRedirect 
     failureRedirect: '/login'
     failureFlash: true
-    
-registerConf =
-    message: bsUtil.compactFlash(req.flash('error'))
 
 
 # Routes
@@ -88,7 +81,8 @@ app.get('/logout', auth.logout)
 
 # Registration stuff
 
-app.get('/register', (req, res) -> res.render('register_dialog', registerConf))
+app.get('/register', (req, res) -> res.render('register_dialog', 
+                                              { message: bsUtil.compactFlash(req.flash('error')) }))
 app.post('/register', userCtl.register)
 
 # From here on verify Logged in
@@ -105,4 +99,3 @@ app.all('*', (req, res) -> res.send(404))
 
 http.createServer(app).listen(app.get('port'), 
 () -> console.log ('Express server listening on port ' + app.get('port')))
-
