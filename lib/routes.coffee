@@ -1,6 +1,5 @@
 bsUtil = require __dirname + '/util'
 _      = require 'underscore'
-oCtl   = require __dirname + '/OfferController'
 rCtl   = require __dirname + '/RequestController'
 bCtl   = require __dirname + '/BookController'
 
@@ -26,7 +25,7 @@ createObject = (req, res) =>
 	type = req.params[0]
 	console.log 'createObject'
 	switch type
-		when 'offer'   then oCtl.createOffer(req, res)
+		when 'offer'   then rCtl.insertOffers(req, res)
 		when 'request' then rCtl.insertRequests(req, res)
 		else return res.send(404)
 

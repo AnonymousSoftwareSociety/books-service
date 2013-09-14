@@ -32,7 +32,7 @@ checkNoDup = (table) =>
         
 checkNoDupRequest = checkNoDup('require')
 
-checkNoDupSell = checkNoDup('sell')
+checkNoDupSell    = checkNoDup('sell')
 
 createObject  = (table) =>
     (objectInfo, callback) =>
@@ -40,6 +40,8 @@ createObject  = (table) =>
         db.insert(table, objectInfo, callback)
 
 createRequest = createObject('require')
+
+createSell    = createObject('sell')
 
 mkSendResultsFactory = (send, results = { success: [], failure: [] }) =>
     (success) =>
@@ -49,14 +51,19 @@ mkSendResultsFactory = (send, results = { success: [], failure: [] }) =>
             resultData = { obj: objInfo, reason: reason }
             results[esit].push resultData
             send(results) # send callback handles 'type' of results
+                          # Note send is triggered just when last result is
+                          # collected
             
 createNegotiation = (request, sell, callback) =>
     # TODO (pay attention with param order)
     callback { request: request, sell: sell }
     
-checkMatchingSell = checkMatchingExists('sell')
+    
+checkMatchingRequest = checkMatchingExists('require')
 
-module.exports.insertRequest = (requestInfo, success, failure) =>
+checkMatchingSell    = checkMatchingExists('sell')
+
+insertRequest = (requestInfo, success, failure) =>
     checkNoDupRequest(requestInfo, => createRequest(requestInfo, 
                 (request) => 
                     console.log 'checkNoDupRequest cb'
@@ -76,26 +83,52 @@ module.exports.insertRequest = (requestInfo, success, failure) =>
              ), 
              =>
                  failure(requestInfo, 
-                         "E' già stata aperta una richiesta identica")
+                         "E' già attiva una richiesta identica")
     )
     
+insertOffer = (sellInfo, success, failure) =>
+    checkNoDupSell(sellInfo, => createSell(sellInfo, 
+                (sell) => 
+                    console.log 'checkNoDupSell cb'
+                    console.log 'returned sell ' + JSON.stringify sell
+                    if (!sell)
+                      failure(sellInfo)
+                    else
+                      checkMatchingRequest(sellInfo, 
+                        (request, sell) => 
+                          console.log 'checkMatchingRequest cb'
+                          if (sell?)
+                              createNegotiation(request, sell, 
+                                        (negotiation) =>
+                                            success negotiation.sell)
+                          else
+                              success sell)
+             ), 
+             =>
+                 failure(sellInfo, 
+                         "E' già attiva un'offerta identica")
+    )
+
     
-module.exports.insertRequests = (req, res) =>
-    
-    books         = req.body.books
-    requests      = _.map(books, 
-                          (bookId) => 
-                            book =
-                                Books_id: parseInt(bookId, 10)
-                                Users_id: parseInt(req.user.id, 10)
-                                Statuses_id: util.status.OPEN
-                            book)
-    send          = _.after(books.length, (results) => res.json results)
-    mkSendResults = mkSendResultsFactory(send)
-    success       = mkSendResults(SUCCESS)
-    failure       = mkSendResults(FAILURE)
-    
-    _.each(requests, (requestInfo) => module.exports.insertRequest(
-        requestInfo, success, failure))
-    
-module.exports.insertSells = (req, res) =>
+insertObjects =  (insertSingle) =>
+    (req, res) =>
+        
+        books         = req.body.books
+        requests      = _.map(books, 
+                            (bookId) => 
+                                book =
+                                    Books_id: parseInt(bookId, 10)
+                                    Users_id: parseInt(req.user.id, 10)
+                                    Statuses_id: util.status.OPEN
+                                book)
+        send          = _.after(books.length, (results) => res.json results)
+        mkSendResults = mkSendResultsFactory(send)
+        success       = mkSendResults(SUCCESS)
+        failure       = mkSendResults(FAILURE)
+        
+        _.each(requests, (requestInfo) => insertSingle(
+            requestInfo, success, failure))
+
+module.exports.insertRequests = insertObjects(insertRequest)
+
+module.exports.insertOffers   = insertObjects(insertOffer)
