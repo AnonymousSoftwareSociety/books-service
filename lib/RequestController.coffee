@@ -1,16 +1,18 @@
-db = require __dirname + '/Db'
-_  = require 'underscore'
+db   = require __dirname + '/Db'
+_    = require 'underscore'
+util = require __dirname + '/util'
 
 SUCCESS = true
 FAILURE = false
 
 checkMatchingExists = (table) =>
     (object, callback) => 
-        db.query("SELECT id FROM #{table} AS sl
-                    WHERE sl.Books_id = $1 AND 
-                          sl.Statuses_id = $2
-                    ORDER BY sl.creation_date ASC
-                    LIMIT 0 1", [object.bookId, util.status.OPEN], 
+        console.log "checkMatchingExists on #{table}"
+        db.query("""SELECT id FROM #{table} AS sl
+                 WHERE sl."Books_id" = $1 AND 
+                 sl."Statuses_id" = $2
+                 ORDER BY sl.creation_date ASC
+                 LIMIT 1 OFFSET 0""", [object.Books_id, util.status.OPEN],
                 (rows) => 
                     if rows.length > 0 
                         callback(rows[0], object)
@@ -20,14 +22,8 @@ checkMatchingExists = (table) =>
 
 checkNoDup = (table) =>
     (requestInfo, success, failure) =>
-        db.query("""
-                SELECT * FROM #{table} WHERE 
-                "Statuses_id" = (SELECT id FROM statuses 
-                WHERE name = 'OPEN')
-                AND "Users_id" = $1 AND "Books_id" = $2
-                """, 
-                [requestInfo.userId, requestInfo.bookId], 
-                (rows) => 
+        console.log "checkNoDup on #{table}"
+        db.retrieve(table, requestInfo, (rows) => 
                     if rows.length == 0
                         success()
                     else
@@ -38,33 +34,18 @@ checkNoDupRequest = checkNoDup('require')
 
 checkNoDupSell = checkNoDup('sell')
 
-createObject  = (table) => #TODO
+createObject  = (table) =>
     (objectInfo, callback) =>
+        console.log("createObject(#{JSON.stringify objectInfo}) on #{table}")
         db.insert(table, objectInfo, callback)
 
-createRequest = (requestInfo, callback) =>
-    console.log 'createRequest'
-    db.query('''
-             INSERT INTO require ("Statuses_id","Users_id","Books_id") 
-             VALUES ((SELECT id FROM statuses WHERE name = 'OPEN'),$1,$2)
-             ''', [requestInfo.userId, requestInfo.bookId], 
-             ((result) =>
-                db.query('''
-                         SELECT * FROM require WHERE 
-                         "Statuses_id" = (SELECT id FROM statuses WHERE name = 'OPEN')
-                         AND "Users_id" = $1 AND "Books_id" = $2
-                         ''', 
-                        [requestInfo.userId, requestInfo.bookId], 
-                        (rows) => 
-                            callback rows[0]
-                 )
-             )
-    )
+createRequest = createObject('require')
 
 mkSendResultsFactory = (send, results = { success: [], failure: [] }) =>
     (success) =>
         esit = if success then 'success' else 'failure'
         (objInfo, reason = '') =>
+            console.log(objInfo, esit, reason)
             resultData = { obj: objInfo, reason: reason }
             results[esit].push resultData
             send(results) # send callback handles 'type' of results
@@ -73,16 +54,19 @@ createNegotiation = (request, sell, callback) =>
     # TODO (pay attention with param order)
     callback { request: request, sell: sell }
     
-checkMatchingSell =  (request, callback) => checkMatchingExists('sell')
+checkMatchingSell = checkMatchingExists('sell')
 
 module.exports.insertRequest = (requestInfo, success, failure) =>
     checkNoDupRequest(requestInfo, => createRequest(requestInfo, 
                 (request) => 
+                    console.log 'checkNoDupRequest cb'
+                    console.log 'returned request ' + JSON.stringify request
                     if (!request)
                       failure(requestInfo)
                     else
-                      checkMatchingSell(request, 
+                      checkMatchingSell(requestInfo, 
                         (sell, request) => 
+                          console.log 'checkMatchingSell cb'
                           if (sell?)
                               createNegotiation(request, sell, 
                                         (negotiation) =>
@@ -98,11 +82,15 @@ module.exports.insertRequest = (requestInfo, success, failure) =>
     
 module.exports.insertRequests = (req, res) =>
     
-    books         = req.body.books.split(',')
-    reqNum        = books.length - 1
-    requests      = _.map(books[...reqNum], (bookId) => 
-                           { bookId: bookId, userId: req.user.id })
-    send          = _.after(reqNum, (results) => res.json results)
+    books         = req.body.books
+    requests      = _.map(books, 
+                          (bookId) => 
+                            book =
+                                Books_id: parseInt(bookId, 10)
+                                Users_id: parseInt(req.user.id, 10)
+                                Statuses_id: util.status.OPEN
+                            book)
+    send          = _.after(books.length, (results) => res.json results)
     mkSendResults = mkSendResultsFactory(send)
     success       = mkSendResults(SUCCESS)
     failure       = mkSendResults(FAILURE)

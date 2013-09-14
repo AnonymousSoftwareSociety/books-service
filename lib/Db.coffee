@@ -8,6 +8,8 @@ module.exports = (options) ->
     
     
     module.exports.query = (qs, params, callback, verbose) ->
+        console.log 'query: ' + qs
+        console.log 'with params: ' + JSON.stringify params
         if verbose is undefined
             verbose = false
         callback = params if _.isFunction params
@@ -15,6 +17,7 @@ module.exports = (options) ->
             if err
                 errMsg = "Postgres error:: #{err}"
                 console.log errMsg
+                throw err
             else
                 callback(if not verbose then result.rows else result)
         if _.isArray params then cli.query(qs, params, rowsCallback) 
@@ -25,31 +28,36 @@ module.exports = (options) ->
     _mkVString = (arr) => '(' +  arr.join(',') + ')'
 
     module.exports.insert = (table, object, callback) =>
-        
-        kVal = _.reduce(object, (kVal, value, key) => 
-            kVal.ks.push key
+        console.log 'insert'
+        kVal = _.reduce(object, ((kVal, value, key) => 
+            kVal.ks.push '"' + key + '"'
             kVal.vls.push value
-            kVal.dummy.push '$' + kval.dummy.length + 1, 
+            kVal.dummy.push '$' + (kVal.dummy.length + 1)
+            kVal), 
         { ks: [], dummy: [], vls: [] })
         
         ksString    = _mkVString kVal.ks 
         dummyString = _mkVString kVal.dummy
-        # TODO merge with retrieve
+        
         module.exports.query("INSERT INTO #{table} #{ksString} VALUES
-                             #{dummyString}", kVal.vls, callback)
+                             #{dummyString}", kVal.vls, () =>
+                                module.exports.retrieve(table, object, (rows) ->
+                                    console.log "retrieve callback(#{JSON.stringify rows[0]})"
+                                    callback rows[0]
+                                )
+        )
 
 
     module.exports.retrieve = (table, object, callback) =>
-    
-        kVal = _.reduce(object, (vls, value, key) => 
+        console.log 'retrieve'
+        kVal = _.reduce(object, ((vls, value, key) => 
                               vls.cnt += 1
                               vls.vls.push value
-                              vls.Str.push """#{key} = #{
-                                  if _.isString key then '"$' + vls.cnt +
-                                            '"' else '$' + vls.cnt} """,
+                              vls.Str.push """"#{key}" = #{'$' + vls.cnt}"""
+                              vls),
                               { cnt: 0, vls: [], Str: [] })
                               
         module.exports.query("SELECT * FROM #{table} WHERE 
-                             #{kVal.Str.join('AND ')}", kVal.vls, callback)
+                             #{kVal.Str.join(' AND ')}", kVal.vls, callback)
 
     return module.exports
