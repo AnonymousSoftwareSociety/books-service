@@ -1,6 +1,7 @@
-db   = require __dirname + '/Db'
-_    = require 'underscore'
-util = require __dirname + '/util'
+db       = require __dirname + '/Db'
+_        = require 'underscore'
+asyncMap = require('async').map;
+util     = require __dirname + '/util'
 
 SUCCESS = true
 FAILURE = false
@@ -14,6 +15,8 @@ checkMatchingExists = (table) =>
                  ORDER BY sl.creation_date ASC
                  LIMIT 1 OFFSET 0""", [object.Books_id, util.status.OPEN],
                 (rows) => 
+                    console.log 'rows matching'
+                    console.log JSON.stringify rows
                     if rows.length > 0 
                         callback(rows[0], object)
                     else 
@@ -23,7 +26,12 @@ checkMatchingExists = (table) =>
 checkNoDup = (table) =>
     (requestInfo, success, failure) =>
         console.log "checkNoDup on #{table}"
-        db.retrieve(table, requestInfo, (rows) => 
+        db.query("""SELECT * FROM #{table} WHERE 
+                 "Statuses_id" <> $1 AND 
+                 "Books_id" = $2 AND 
+                 "Users_id" = $3 """, 
+                 [util.status.CLOSED, requestInfo.Books_id, 
+                  requestInfo.Users_id], (rows) => 
                     if rows.length == 0
                         success()
                     else
@@ -37,7 +45,8 @@ checkNoDupSell    = checkNoDup('sell')
 createObject  = (table) =>
     (objectInfo, callback) =>
         console.log("createObject(#{JSON.stringify objectInfo}) on #{table}")
-        db.insert(table, objectInfo, callback)
+        db.insert(table, _.omit(objectInfo, 'bookData'), (inserted) => 
+                  callback _.extend(inserted, _.pick(objectInfo, 'bookData')))
 
 createRequest = createObject('require')
 
@@ -54,9 +63,51 @@ mkSendResultsFactory = (send, results = { success: [], failure: [] }) =>
                           # Note send is triggered just when last result is
                           # collected
             
-createNegotiation = (request, sell, callback) =>
-    # TODO (pay attention with param order)
-    callback { request: request, sell: sell }
+insertNegotiation = (request, sell, callback) =>
+
+    console.log "insertNegotiation(#{JSON.stringify request}, 
+    #{JSON.stringify sell})"
+    setAssigned = (table, id) =>
+        (cback) =>
+            console.log "setAssigned on #{table}"
+            db.query("""UPDATE #{table} SET "Statuses_id" = $1 
+                 WHERE id = $2""", [util.status.ASSIGNED, id], 
+                 callback, false, db.rollback)
+    
+    retrieveNegotiation = (cback) =>
+        console.log 'retrieveNegotiation'
+        db.query("""SELECT n.id, 
+                 r."Books_id" AS "r_Books_id", 
+                 r."Users_id" AS "r_Users_id", 
+                 r.id AS r_id,
+                 r.creation_date AS creation_date
+                 rs.name AS r_status
+                 s."Books_id" AS "s_Books_id", 
+                 s."Users_id" AS "s_Users_id", 
+                 s.id AS s_id,
+                 s.creation_date AS s_creation_date,
+                 ss.name AS s_status
+                 FROM negotiations AS n 
+                 JOIN require AS r ON r.id = n."Request_id"
+                 JOIN "Statuses" as rs ON r."Statuses_id" = rs.id
+                 JOIN sell AS s ON s.id = n."Sell_id"
+                 JOIN "Statuses" as ss ON s."Statuses_id" = ss.id
+                 WHERE r."Users_id" = $1 AND
+                 s."Users_id" = $2 AND
+                 r."Books_id" = $3 AND
+                 s."Books_id" = $3
+                 """, cback)
+        
+    createNegotiation = () =>
+    
+        db.query("""INSERT INTO negotiation ("Require_id","Sell_id") 
+                 VALUES ($1,$2)""", [request.id, sell.id], 
+                 () =>
+                    db.commit retrieveNegotiation callback)
+    
+    db.query('BEGIN',
+                () => setAssigned('require', request.id)(
+                    setAssigned('sell', sell.id)(createNegotiation)))
     
     
 checkMatchingRequest = checkMatchingExists('require')
@@ -71,11 +122,11 @@ insertRequest = (requestInfo, success, failure) =>
                     if (!request)
                       failure(requestInfo)
                     else
-                      checkMatchingSell(requestInfo, 
+                      checkMatchingSell(request, 
                         (sell, request) => 
                           console.log 'checkMatchingSell cb'
                           if (sell?)
-                              createNegotiation(request, sell, 
+                              insertNegotiation(request, sell, 
                                         (negotiation) =>
                                             success negotiation.request)
                           else
@@ -94,11 +145,11 @@ insertOffer = (sellInfo, success, failure) =>
                     if (!sell)
                       failure(sellInfo)
                     else
-                      checkMatchingRequest(sellInfo, 
+                      checkMatchingRequest(sell, 
                         (request, sell) => 
                           console.log 'checkMatchingRequest cb'
-                          if (sell?)
-                              createNegotiation(request, sell, 
+                          if (request?)
+                              insertNegotiation(request, sell, 
                                         (negotiation) =>
                                             success negotiation.sell)
                           else
@@ -114,20 +165,28 @@ insertObjects =  (insertSingle) =>
     (req, res) =>
         
         books         = req.body.books
-        requests      = _.map(books, 
-                            (bookId) => 
-                                book =
-                                    Books_id: parseInt(bookId, 10)
-                                    Users_id: parseInt(req.user.id, 10)
-                                    Statuses_id: util.status.OPEN
-                                book)
-        send          = _.after(books.length, (results) => res.json results)
+        send          = _.after(books.length, (results) => 
+                                res.render('op_result', results))
         mkSendResults = mkSendResultsFactory(send)
         success       = mkSendResults(SUCCESS)
         failure       = mkSendResults(FAILURE)
         
-        _.each(requests, (requestInfo) => insertSingle(
-            requestInfo, success, failure))
+        asyncMap(books, ((bookId, callback) => 
+                         db.retrieve('books', { id: bookId }, (book) =>
+                                objInfo =
+                                    bookData: book[0]
+                                    Books_id: parseInt(bookId, 10)
+                                    Users_id: parseInt(req.user.id, 10)
+                                    Statuses_id: util.status.OPEN
+                                callback(null, objInfo))), 
+                        (err, objects) =>
+                            if (err)
+                                console.log("something went wrong with async: 
+                                             #{JSON.stringify err}")
+                                return
+                            _.each(objects, (requestInfo) => 
+                                insertSingle(requestInfo, success, failure)))
+
 
 module.exports.insertRequests = insertObjects(insertRequest)
 

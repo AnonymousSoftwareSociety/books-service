@@ -1,0 +1,15 @@
+{{> header}}
+
+<h2>{{actionLabel}}</h2>
+
+{{#success}}
+<p><b>{{bookData.title}}</b><br/>
+<small>Inserito con successo!</small></p>
+{{/success}}
+<br/>
+{{#failure}}
+<p><b>{{bookData.title}}</b><br/>
+<small>Iserimento fallito: {{reason}}</small></p>
+{{/failure}}
+
+{{> footer}}

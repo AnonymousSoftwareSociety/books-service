@@ -1,6 +1,6 @@
 bsUtil = require __dirname + '/util'
 _      = require 'underscore'
-rCtl   = require __dirname + '/RequestController'
+rCtl   = require __dirname + '/NegotiationController'
 bCtl   = require __dirname + '/BookController'
 
 ###
