@@ -4,10 +4,15 @@ _   = require 'underscore'
 module.exports = (options) -> 
     cli = new _db.Client(options)
     cli.connect()
-
     
+    module.exports.rollback = (err) =>
+        cli.query('ROLLBACK', (err) => 
+                    cli.end()
+                    throw err)
     
-    module.exports.query = (qs, params, callback, verbose) ->
+    module.exports.query = (qs, params, callback, 
+                            fCall = ((err) => 
+                                throw err), verbose = false) ->
         console.log 'query: ' + qs
         console.log 'with params: ' + JSON.stringify params
         if verbose is undefined
@@ -17,11 +22,14 @@ module.exports = (options) ->
             if err
                 errMsg = "Postgres error:: #{err}"
                 console.log errMsg
-                throw err
+                fCall err
             else
                 callback(if not verbose then result.rows else result)
         if _.isArray params then cli.query(qs, params, rowsCallback) 
         else cli.query(qs, rowsCallback)
+        
+    module.exports.commit = (callback) =>
+        db.query('COMMIT', callback)
 
     module.exports.VERBOSE = true
 
