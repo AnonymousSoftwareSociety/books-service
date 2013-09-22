@@ -1,7 +1,8 @@
-db       = require __dirname + '/Db'
-_        = require 'underscore'
-asyncMap = require('async').map;
-util     = require __dirname + '/util'
+db        = require __dirname + '/Db'
+_         = require 'underscore'
+asyncMap  = require('async').map;
+util      = require __dirname + '/util'
+sendMails = require(__dirname + '/MailHelper').sendMails
 
 SUCCESS = true
 FAILURE = false
@@ -62,7 +63,7 @@ mkSendResultsFactory = (send, results = { success: [], failure: [] }) =>
             send(results) # send callback handles 'type' of results
                           # Note send is triggered just when last result is
                           # collected
-            
+
 insertNegotiation = (request, sell, callback) =>
 
     console.log "insertNegotiation(#{JSON.stringify request}, 
@@ -76,6 +77,7 @@ insertNegotiation = (request, sell, callback) =>
     
     retrieveNegotiation = (cback) =>
         console.log 'retrieveNegotiation'
+        # TODO : insert bookData + user data on single objects
         db.query("""SELECT n.id, 
                  r."Books_id" AS "r_Books_id", 
                  r."Users_id" AS "r_Users_id", 
@@ -128,6 +130,7 @@ insertRequest = (requestInfo, success, failure) =>
                           if (sell?)
                               insertNegotiation(request, sell, 
                                         (negotiation) =>
+                                        	sendMails negotiation
                                             success negotiation.request)
                           else
                               success request)
